@@ -36,10 +36,10 @@
 #  }
 #
 class play (
-  $version,
-  $install_path = '/opt',
-  $user= 'root'
-) {
+  $version = $play::params::version,
+  $install_path = $play::params::install_path,
+  $user= $play::params::user
+) inherits play::params {
 
   include wget
 
@@ -69,17 +69,45 @@ class play (
     ],
   }
 
+  group { $user:
+    ensure  => present,
+  }
+
+  user { $user:
+    ensure  => present,
+    home    => "/home/$user",
+    gid     => $user,
+    comment => 'play framework user',
+    require => Group["$user"]
+  }
+
+  file { "/home/$user":
+    ensure  => directory,
+    require => User[$user],
+    owner   => $user,
+    group   => $user,
+    mode    => 0750
+  }
+
   exec { 'change ownership of play installation':
     cwd     => $install_path,
     command => "/bin/chown -R ${user}: play-${version}",
-    require => Exec['unzip-play-framework']
+    require => [
+      Exec['unzip-play-framework'],
+      User[$user]
+    ]
   }
 
   file { "${play_path}/play":
     ensure  => file,
     owner   => $user,
+    group   => $user,
     mode    => '0755',
-    require => Exec['unzip-play-framework']
+    alias   => 'play-bin',
+    require => [
+      Exec['unzip-play-framework'],
+      User[$user]
+    ]
   }
 
   file {'/usr/bin/play':
